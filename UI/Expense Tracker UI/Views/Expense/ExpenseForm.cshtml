@@ -1,0 +1,153 @@
+﻿@{
+    ViewData["Title"] = "ExpenseForm";
+}
+<main id="main" class="main">
+
+    <div class="pagetitle">
+        <h1>EXPENSE FORM</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+                <li class="breadcrumb-item">Forms</li>
+                <li class="breadcrumb-item active">EXPENSE</li>
+            </ol>
+        </nav>
+    </div>
+
+    <section class="section">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="card-title">&bull; Expense Form &bull;</h1>
+
+                    <!-- Expense Form -->
+                    <form id="expenseForm" class="row g-3">
+                        <div class="col-12">
+                            <label for="description" class="form-label">Description</label>
+                            <input type="text" class="form-control" id="description" name="Description" placeholder="Enter Description of Expense">
+                        </div>
+                        <div class="col-12">
+                            <label for="categoryId" class="form-label">Category</label>
+                            <select class="form-control" id="categoryId" name="CategoryId">
+                                <!-- Options will be dynamically populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label for="amount" class="form-label">Amount</label>
+                            <input type="number" step="0.01" class="form-control" id="amount" name="Amount" placeholder="Enter the Amount">
+                        </div>
+                        <div class="col-12">
+                            <label for="date" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="date" name="Date" placeholder="Enter the Date to Track">
+                        </div>
+                        <div class="text-center">
+                            <button type="button" id="submitExpenseBtn" class="btn btn-primary">Submit</button>
+                            <button type="button" id="resetExpenseBtn" class="btn btn-secondary">Reset</button>
+                        </div>
+                    </form>
+                    <div id="alertContainer"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<script>
+    function customAlert(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.classList.add('alert', `alert-${type}`);
+        alertDiv.textContent = message;
+
+        // Append the alert to the alertContainer
+        const alertContainer = document.getElementById('alertContainer');
+        alertContainer.appendChild(alertDiv);
+
+        // Automatically remove the alert after some time (e.g., 5 seconds)
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000); // 5000 milliseconds = 5 seconds
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Fetch categories and populate the dropdown
+        fetch('https://localhost:7205/api/categories')
+            .then(response => response.json())
+            .then(categories => {
+                const categorySelect = document.getElementById('categoryId');
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.categoryId.toString(); // Ensure categoryId is converted to string
+                    option.textContent = category.name;
+                    categorySelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching categories:', error);
+                customAlert('Error fetching categories: ' + error.message, 'danger');
+            });
+
+        document.getElementById('submitExpenseBtn').addEventListener('click', async function (event) {
+            // Prevent the default form submission
+            event.preventDefault();
+
+            // Collect form data
+            const description = document.getElementById('description').value;
+            const categoryId = document.getElementById('categoryId').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const date = document.getElementById('date').value;
+
+            // Validate amount and date
+            if (isNaN(amount) || amount <= 0) {
+                customAlert('Please enter a valid amount.', 'danger');
+                return;
+            }
+
+            if (!date) {
+                customAlert('Please enter a valid date.', 'danger');
+                return;
+            }
+
+            // Prepare the expense data object
+            const expenseData = {
+                Description: description,
+                CategoryId: categoryId,
+                ExpenseDetails: [
+                    {
+                        Amount: amount,
+                        Date: date
+                    }
+                ]
+            };
+
+            // Send the data using the Fetch API to C# backend
+            try {
+                const response = await fetch('https://localhost:7205/api/expense/AddOrCreateExpense', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(expenseData)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to add expense: ${errorText}`);
+                }
+
+                // Reset the form on success
+                document.getElementById('expenseForm').reset();
+                customAlert('Expense submitted successfully!', 'success');
+            } catch (error) {
+                console.error('Error:', error);
+                customAlert('Error submitting expense: ' + error.message, 'danger');
+            }
+        });
+
+        document.getElementById('resetExpenseBtn').addEventListener('click', function () {
+            // Reset the form fields
+            document.getElementById('expenseForm').reset();
+        });
+    });
+</script>
+

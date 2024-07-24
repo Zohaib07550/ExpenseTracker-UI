@@ -1,0 +1,141 @@
+﻿@{
+    ViewData["Title"] = "IncomeForm";
+}
+<main id="main" class="main">
+
+    <div class="pagetitle">
+        <h1>INCOME FORM</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+                <li class="breadcrumb-item">Forms</li>
+                <li class="breadcrumb-item active">INCOME</li>
+            </ol>
+        </nav>
+    </div>
+
+    <section class="section">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="card-title">&bull; Income Form &bull;</h1>
+
+                    <!-- Income Form -->
+                    <form id="incomeForm" class="row g-3">
+                        <div class="col-12">
+                            <label for="description" class="form-label">Description</label>
+                            <input type="text" class="form-control" id="description" name="Description" placeholder="Enter Description of Income">
+                        </div>
+                        <div class="col-12">
+                            <label for="categoryId" class="form-label">Category</label>
+                            <select class="form-control" id="categoryId" name="CategoryId">
+                                <!-- Options will be dynamically populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label for="amount" class="form-label">Amount</label>
+                            <input type="number" step="0.01" class="form-control" id="amount" name="Amount" placeholder="Enter the Amount">
+                        </div>
+                        <div class="col-12">
+                            <label for="date" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="date" name="Date" placeholder="Enter the Date to Track">
+                        </div>
+                        <div class="text-center">
+                            <button type="button" id="submitIncomeBtn" class="btn btn-primary">Submit</button>
+                            <button type="button" id="resetIncomeBtn" class="btn btn-secondary">Reset</button>
+                        </div>
+                    </form>
+                    <div id="alertContainer"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<script>
+    function customAlert(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.classList.add('alert', `alert-${type}`);
+        alertDiv.textContent = message;
+
+        // Append the alert to the alertContainer
+        const alertContainer = document.getElementById('alertContainer');
+        alertContainer.appendChild(alertDiv);
+
+        // Automatically remove the alert after some time (e.g., 5 seconds)
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000); // 5000 milliseconds = 5 seconds
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Fetch categories and populate the dropdown
+        fetch('https://localhost:7205/api/categories')
+            .then(response => response.json())
+            .then(categories => {
+                console.log('Categories fetched:', categories); // Debugging
+                const categorySelect = document.getElementById('categoryId');
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.categoryId.toString();
+                    option.textContent = category.name;
+                    categorySelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching categories:', error));
+
+        document.getElementById('submitIncomeBtn').addEventListener('click', async function (event) {
+            event.preventDefault();
+
+            const description = document.getElementById('description').value;
+            const categoryId = document.getElementById('categoryId').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const date = document.getElementById('date').value;
+
+            console.log('Form Data:', { description, categoryId, amount, date }); // Debugging
+
+            if (isNaN(amount) || amount <= 0) {
+                customAlert('Please enter a valid amount.', 'danger');
+                return;
+            }
+
+            const incomeData = {
+                Description: description,
+                CategoryId: categoryId,
+                IncomeEntry: [
+                    {
+                        Amount: amount,
+                        Date: date
+                    }
+                ]
+            };
+
+            try {
+                console.log('Sending data:', incomeData); // Debugging
+                const response = await fetch('https://localhost:7205/api/IncomeSource/income-sources', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(incomeData)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to add income: ${errorText}`);
+                }
+
+                document.getElementById('incomeForm').reset();
+                customAlert('Income submitted successfully!', 'success');
+            } catch (error) {
+                console.error('Error:', error);
+                customAlert('Error submitting income: ' + error.message, 'danger');
+            }
+        });
+
+        document.getElementById('resetIncomeBtn').addEventListener('click', function () {
+            document.getElementById('incomeForm').reset();
+        });
+    });
+</script>

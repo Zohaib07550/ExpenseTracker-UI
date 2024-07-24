@@ -1,0 +1,106 @@
+﻿@{
+    ViewData["Title"] = "ExpenseInvoice";
+}
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1>LIST</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+                <li class="breadcrumb-item">Tables</li>
+                <li class="breadcrumb-item active">Expense</li>
+            </ol>
+        </nav>
+    </div>
+
+    <section class="section">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Expense With Detail</h5>
+
+                    <!-- Dropdown for category name -->
+                    <select id="categoryNameDropdown" class="form-select">
+                        <option value="" selected disabled>Select a category</option>
+                    </select>
+
+                    <!-- Fetch button -->
+                    <button id="fetchExpense" class="btn btn-primary mt-3">Expenses</button>
+
+                    <table class="table table-striped mt-3">
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Description</th>
+                                <th scope="col">Amount</th>
+                                <th scope="col">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenseTableBody">
+                            <!-- Data will be dynamically inserted here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        // Fetch categories and populate the dropdown
+        fetch('https://localhost:7205/api/categories')
+            .then(response => response.json())
+            .then(categories => {
+                const categorySelect = $('#categoryNameDropdown');
+                categories.forEach(category => {
+                    const option = $('<option></option>')
+                        .val(category.name)
+                        .text(category.name);
+                    categorySelect.append(option);
+                });
+            })
+            .catch(error => console.error('Error fetching categories:', error));
+
+        $('#fetchExpense').click(function () {
+            var categoryName = $('#categoryNameDropdown').val();
+            if (categoryName) {
+                fetch(`https://localhost:7205/api/expense/GetExpensesAndDetailsByCategoryName?categoryName=${categoryName}`)
+                    .then(response => {
+                        // Check if the request was successful
+                        if (!response.ok) {
+                            return response.json().then(error => {
+                                throw new Error(error.message);
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Handle the data returned from the server
+                        console.log('Get request response:', data);
+                        $('#expenseTableBody').empty();
+                        const rows = data.map((expense, index) =>
+                            expense.expenseDetails.map(detail =>
+                                `<tr>
+                                        <th scope="row">${index + 1}</th>
+                                        <td>${expense.description}</td>
+                                        <td>${detail.amount}</td>
+                                        <td>${new Date(detail.date).toLocaleDateString()}</td>
+                                    </tr>`
+                            ).join('')
+                        ).join('');
+                        $('#expenseTableBody').append(rows);
+                    })
+                    .catch(error => {
+                        // Handle any errors that occurred during the fetch
+                        console.error('There was a problem with the fetch operation:', error);
+                        alert('Error fetching expenses: ' + error.message);
+                    });
+            } else {
+                alert('Please select a category.');
+            }
+        });
+    });
+</script>
